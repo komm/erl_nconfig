@@ -78,7 +78,14 @@ handle_call({update_config, file} ,_From, _Config)->
 ;
 handle_call({update_config, json, Json} ,_From, _Config)->
    NewConfig = mochijson2:decode(Json),
-   {reply,ok, NewConfig}
+   Fun =
+   fun(Fun, {struct, Array})-> [{Name, Fun(Fun, X)} || {Name, X} <- Array ];
+      (Fun, Array) when is_list(Array)-> [Fun(Fun, Y) || Y<-Array]; 
+      (_, Int) when is_integer(Int)-> Int; 
+      (_, Bin) when is_binary(Bin)-> 
+                 list_to_atom(binary_to_list(Bin)) 
+   end,
+   {reply,ok, Fun(Fun, NewConfig)}
 .
 handle_cast(_Msg, Config) ->
   {noreply, Config}.
