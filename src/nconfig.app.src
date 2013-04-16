@@ -1,0 +1,12 @@
+{application, nconfig,
+ [
+  {description, ""},
+  {vsn, "0.5"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { nconfig_app, []}},
+  {env, []}
+ ]}.
