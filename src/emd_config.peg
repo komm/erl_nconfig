@@ -64,9 +64,10 @@ callbacks <- "callbacks" (freeline / space)* "{" (freeline / space)* crlf* ((fre
 ;
 
 commandline <- (freeline / space)* comm:command space* "=" space* (param:argv / param:parameter) space* delimeter`
-	{command,
+	{
 		binary_to_atom(proplists:get_value(comm,Node),latin1),
-		binary_to_atom(proplists:get_value(param,Node),latin1)}
+		binary_to_atom(proplists:get_value(param,Node),latin1)
+	}
 `
 ;
 freeline <- comment / space* crlf `

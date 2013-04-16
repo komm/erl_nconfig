@@ -5,41 +5,26 @@
 
 -define(SERVER, ?MODULE).
 -define(DEFAULT_APP, nconfig).
--record(app_state,{
-          name :: atom() | list(),
-          state :: 'on' | 'off',
-          mode = auto :: 'auto' | 'manual'
-       }).
 
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/1, get_config/0, get_config/1, read_config/1, update_config/1, save_config/1, start_services/0]).
+-export([start_link/0, get_config/0, get_config/1, read_config/1, update_config/1, save_config/1]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
 %% ------------------------------------------------------------------
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
--export([behaviour_info/1]).
 
 %% ------------------------------------------------------------------
 %% API Function Definitions
 %% ------------------------------------------------------------------
 
--spec start_link( HandleServices :: list()) -> {ok, Pid :: pid()}.
-start_link(HandleServices) ->
-  {ok, Pid} = gen_server:start_link({global, ?SERVER}, ?MODULE, [HandleServices], []),
-  start_services(),
-  {ok, Pid}.
-
--spec behaviour_info(callbacks) -> list().
-behaviour_info(callbacks) ->
-  [{start,1},
-   {stop,1},
-   {restart,1}
-  ].
+-spec start_link() -> {ok, Pid :: pid()}.
+start_link() ->
+  gen_server:start_link({global, ?SERVER}, ?MODULE, [], []).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
@@ -53,13 +38,12 @@ save_config(file)->
     false-> error;
     {conf,Path}->
       {ok, File} = file:open(Path, write),
-      Data = 
       [io:format(File, '~p{\n~s}\n',[X, 
 		[case C of 
                  argv -> io_lib:format('\t~s = "~s";\n',[C, V]);
                  _ -> io_lib:format('\t~s = ~s;\n',[C, V])
                  end
-                || {command, C, V} <- Y] ]) 
+                || {C, V} <- Y] ]) 
       || {X,Y} <- get_config()],
       file:close(File),
       ok
@@ -69,61 +53,19 @@ save_config(_)->
   error
 .
 
-
-stop_service(SeviceName)->
-  error_logger:info_report([{?MODULE, stop_service}, {ServiceName, stop}]),
-  ServiceName:stop(Config)
-.
--spec stop_services() -> ok.
-stop_services()->
-  {_, HandleServices} = get_config(),
-  [ stop_service(X) || X <- HandleServices],
-  ok
-.
-
-start_service(SeviceName, false)->
-  error_logger:info_report([{?MODULE, start_service}, {ServiceName, not_started}]),
-  not_started
-;
-start_service(SeviceName, Config)->
-  error_logger:info_report([{?MODULE, start_service}, {ServiceName, initialization}]),
-  case ServiceName:start(Config) of
-    ok->
-  end
-.
--spec start_services() -> ok.
-start_services()->
-  {Config, HandleServices} = get_config(),
-  [ start_service(X, get_config(X)) || X <- HandleServices],
-  ok
-.
-
-%TODO: already running?
-restart_service(SeviceName, false)->
-  error_logger:info_report([{?MODULE, start_service}, {ServiceName, not_started}]),
-  not_started
-;
-restart_service(SeviceName, Config)->
-  error_logger:info_report([{?MODULE, start_service}, {ServiceName, initialization}]),
-  ServiceName:start(Config)
-.
-
--spec restart_services() -> ok.
-restart_services()->
-  {Config, HandleServices} = get_config(),
-  [ start_service(X, get_config(X)) || X <- HandleServices],
-  ok
-.
-
 -spec update_config( Value :: term() ) -> ok. 
-update_config(_Val)->
-  gen_server:call({global, ?MODULE}, update_config),
+update_config(file)->
+  gen_server:call({global, ?MODULE}, {update_config, file}),
+  ok
+;
+update_config({json, Json})->
+  gen_server:call({global, ?MODULE}, {update_config, json, Json}),
   ok
 .
 
-init([HandleServices])->
+init(_)->
   Config=read_config(file),
-  {ok, {Config, HandleServices}}
+  {ok, Config}
 .
 
 handle_call(all, _From, Config) ->
@@ -131,8 +73,12 @@ handle_call(all, _From, Config) ->
 handle_call({get,Val}, _From, Config) ->
   {reply, pp(Val,Config), Config}
 ;
-handle_call(update_config,_From,_Config)->
+handle_call({update_config, file} ,_From, _Config)->
    {reply,ok, read_config(file)}
+;
+handle_call({update_config, json, Json} ,_From, _Config)->
+   NewConfig = mochijson2:decode(Json),
+   {reply,ok, NewConfig}
 .
 handle_cast(_Msg, Config) ->
   {noreply, Config}.
@@ -168,8 +114,8 @@ compare([HeadConfig|Tail], Template)->
 		false -> [];
 		Other -> Other
 	end,
-	Diff = [ X || {command, X, _} <- RequredParameter] -- [X || {command, X, _} <- Value],
-	[{BlockName, Value ++ [lists:keyfind(X,2,RequredParameter) || X <- Diff ]}] ++ compare(Tail, Template)
+	Diff = [ X || {X, _} <- RequredParameter] -- [X || {X, _} <- Value],
+	[{BlockName, Value ++ [lists:keyfind(X,1,RequredParameter) || X <- Diff ]}] ++ compare(Tail, Template)
 
 .
 
@@ -184,11 +130,14 @@ read_config(file)->
       case emd_config:file(Path) of
         {_,BadString,BadValue}->
           error_logger:error_report([{?MODULE, read_config},
-                                     BadValue, io_lib:format('~s', [binary_to_list(BadString)])]),
-	  []
+                                     {error, BadValue},
+                                     {string, io_lib:format('~s', [binary_to_list(BadString)])},
+                                     "Load default parameters"
+                                    ]),
+	  default()
         ;
 	Config when is_list(Config)-> 
-		compare(Config, default()),
+		compare(Config, default())
       end
   end
 ;
@@ -202,5 +151,5 @@ get_config(Val)->
 
 -spec default() -> Config :: list().
 default()->
-	application:get_all_env(?DEFAULT_APP)
+	application:get_all_env(?DEFAULT_APP) -- [{included_applications,[]}]
 .
