@@ -10,7 +10,7 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/0, get_config/0, get_config/1, read_config/1, update_config/1, save_config/1]).
+-export([start_link/0, get_config/0, get_config/1, read_config/1, update_config/1, save_config/1, apply/1]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -29,39 +29,6 @@ start_link() ->
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
-
--spec save_config( file )            -> ok;
-		 ( Value :: term() ) -> error.
-save_config(file)-> 
-  Argx=init:get_arguments(),
-  case lists:keyfind(conf,1,Argx) of
-    false-> error;
-    {conf,Path}->
-      {ok, File} = file:open(Path, write),
-      [io:format(File, '~p{\n~s}\n',[X, 
-		[case C of 
-                 argv -> io_lib:format('\t~s = "~s";\n',[C, V]);
-                 _ -> io_lib:format('\t~s = ~s;\n',[C, V])
-                 end
-                || {C, V} <- Y] ]) 
-      || {X,Y} <- get_config()],
-      file:close(File),
-      ok
-  end
-;
-save_config(_)->
-  error
-.
-
--spec update_config( Value :: term() ) -> ok. 
-update_config(file)->
-  gen_server:call({global, ?MODULE}, {update_config, file}),
-  ok
-;
-update_config({json, Json})->
-  gen_server:call({global, ?MODULE}, {update_config, json, Json}),
-  ok
-.
 
 init(_)->
   Config=read_config(file),
@@ -154,9 +121,57 @@ read_config(json)->none.
 get_config()->
    gen_server:call({global, ?MODULE}, all).
 get_config(Val)->
-   gen_server:call({global, ?MODULE}, {get, Val}).
+   case gen_server:call({global, ?MODULE}, {get, Val}) of
+     false -> application:get_all_env(Val);
+     List -> List ++ application:get_all_env(Val)
+   end
+.
 
 -spec default() -> Config :: list().
 default()->
 	application:get_all_env(?DEFAULT_APP) -- [{included_applications,[]}]
 .
+
+-spec save_config( file )            -> ok;
+		 ( Value :: term() ) -> error.
+save_config(file)-> 
+  Argx=init:get_arguments(),
+  case lists:keyfind(conf,1,Argx) of
+    false-> error;
+    {conf,Path}->
+      {ok, File} = file:open(Path, write),
+      [io:format(File, '~p{\n~s}\n',[X, 
+		[case C of 
+                 argv -> io_lib:format('\t~s = "~s";\n',[C, V]);
+                 _ -> io_lib:format('\t~s = ~s;\n',[C, V])
+                 end
+                || {C, V} <- Y] ]) 
+      || {X,Y} <- get_config()],
+      file:close(File),
+      ok
+  end
+;
+save_config(_)->
+  error
+.
+
+-spec update_config( Value :: term() ) -> ok. 
+update_config(file)->
+  gen_server:call({global, ?MODULE}, {update_config, file}),
+  ok
+;
+update_config({json, Json})->
+  gen_server:call({global, ?MODULE}, {update_config, json, Json}),
+  ok
+.
+
+-spec apply(App :: list()) -> ok | error.
+apply(App)->
+  case get_config(App) of
+   false -> error;
+   List when is_list(List) ->
+     [application:set_env(App, Value, Parameter) || {Value, Parameter} <- List],
+     ok
+  end
+.
+

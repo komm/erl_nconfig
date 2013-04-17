@@ -11,6 +11,7 @@
 
 %% Helper macro for declaring children of supervisor
 -define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
+-define(CHILD2(I, Type, Parameter), {I, {I, start_link, [Parameter]}, permanent, 5000, Type, [I]}).
 
 %% ===================================================================
 %% API functions
@@ -24,5 +25,5 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-    {ok, { {one_for_one, 5, 10}, [?CHILD(config_srv, supervisor)]} }.
+    {ok, { {one_for_one, 5, 10}, [?CHILD(config_srv, worker), ?CHILD2(service_srv, worker, [])]} }.
 
