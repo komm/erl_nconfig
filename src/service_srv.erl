@@ -15,7 +15,7 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/1, start_service/1, stop_service/1]).
+-export([start_link/1, start_service/1, stop_service/1, restart_service/1]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -44,12 +44,19 @@ behaviour_info(callbacks) ->
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
 
+start_service(?DEFAULT_APP)->
+  application:start(?DEFAULT_APP)
+;
 start_service(ServiceName)->
   gen_server:call({global, ?MODULE}, {start_service, ServiceName})
 .
 
 stop_service(ServiceName)->
   gen_server:call({global, ?MODULE}, {stop_service, ServiceName})
+.
+
+restart_service(ServiceName)->
+  gen_server:call({global, ?MODULE}, {restart_service, ServiceName})
 .
 
 init([HandleServices])->
@@ -73,7 +80,18 @@ handle_call({stop_service, ServiceName}, _From, HandleServices) ->
   application:stop(ServiceName),
   application:unload(ServiceName),
   {reply, ok, HandleServices}
+;
+handle_call({restart_service, ServiceName}, _From, HandleServices) ->
+  case [ X || X <- HandleServices, is_record(X, app_state), X#app_state.name =:= ServiceName] of
+    [] -> application:stop(ServiceName),
+          config_srv:apply(ServiceName),
+	  application:start(ServiceName)
+    ;
+    [App | _] -> App:restart([])
+  end,
+  {reply, ok, HandleServices}
 .
+
 handle_cast(_Msg, HandleServices) ->
   {noreply, HandleServices}.
 
