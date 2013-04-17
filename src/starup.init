@@ -2,7 +2,7 @@
 
 %% -*- erlang -*-
 %%! -name erlname-console@hostname -setcookie cookie
-provides()->"
+debian_provides()->"
 ### BEGIN INIT INFO
 # Provides: erlname
 # Required-Start: $local_fs $remote_fs $network
