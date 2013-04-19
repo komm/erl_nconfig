@@ -108,6 +108,13 @@ app_start(X, Name, Mode) when X#app_state.state == off, X#app_state.name == Name
 ;
 app_start(X, _, _) -> X.
 
+app_status(X) when X#app_state.state == on ->
+  X#app_state{state = (X#app_state.module):status(X#app_state.name)}
+;
+app_status(X) ->
+  X
+.
+
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
@@ -119,7 +126,8 @@ init([])->
 handle_call(all, _From, HandleServices) ->
   {reply, HandleServices, HandleServices};
 handle_call(status_all, _From, HandleServices) ->
-  {reply, HandleServices, HandleServices};
+  Resp = lists:map(fun app_status/1, HandleServices),
+  {reply, Resp, HandleServices};
 handle_call({start_service, ServiceName, StartMode}, _From, HandleServices) ->
   case [ X || X <- HandleServices, is_record(X, app_state), (X#app_state.name == ServiceName) or (ServiceName == all)] of
     [] -> application:load(ServiceName),
