@@ -138,15 +138,6 @@ handle_call({start_service, ServiceName, StartMode}, _From, HandleServices) ->
     _ -> 
           NewHandleServices =
           lists:map(
-%%                fun(X) when is_record(X, app_state), X#app_state.state == off, (X#app_state.name == ServiceName) or (ServiceName == all) ->
-%%                     M = X#app_state.module,
-%%                     case M:start(X#app_state.name) of
-%%                       ok -> X#app_state{mode = StartMode, state = on};
-%%                       {error,{already_started,_}} -> X#app_state{state = on};
-%%                       _ ->  X#app_state{state = error}
-%%                     end;
-%%                   (X) -> X
-%%                end,
 		fun(X)-> app_start(X, ServiceName, StartMode) end,
                 HandleServices 
           ),
