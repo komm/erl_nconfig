@@ -16,7 +16,7 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/0, start_service/2, stop_service/1, restart_service/2, status_services/0]).
+-export([start_link/0, start_service/2, stop_service/2, restart_service/2, status_services/0]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -52,9 +52,9 @@ start_service(ServiceName, StartMode)->
   gen_server:call({global, ?MODULE}, {start_service, ServiceName, StartMode})
 .
 
--spec stop_service(ServiceName :: atom()) -> ok.
-stop_service(ServiceName)->
-  gen_server:call({global, ?MODULE}, {stop_service, ServiceName})
+-spec stop_service(ServiceName :: atom(), StopMode :: 'auto' | 'manual') -> ok.
+stop_service(ServiceName, StopMode)->
+  gen_server:call({global, ?MODULE}, {stop_service, ServiceName, StopMode})
 .
 
 -spec restart_service(ServiceName :: atom(), StartMode :: 'auto' | 'manual') -> ok | error.
@@ -146,12 +146,26 @@ handle_call({start_service, ServiceName, StartMode}, _From, HandleServices) ->
   end
   
 ;
-handle_call({stop_service, ServiceName}, _From, HandleServices) ->
+handle_call({stop_service, all, StopMode}, _From, HandleServices) ->
+  NewHandleServices = 
+  lists:map(
+    fun(X) when X#app_state.state == on, X#app_state.mode == StopMode
+	   -> (X#app_state.module):stop(X#app_state.name), 
+              X#app_state{state = off};
+       (X) -> X
+    end,
+    HandleServices
+  ),
+  {reply, ok, NewHandleServices}
+;
+handle_call({stop_service, ServiceName, StopMode}, _From, HandleServices) ->
   application:stop(ServiceName),
   application:unload(ServiceName),
   NewHandleServices = 
   lists:map(
-    fun(X) when X#app_state.name == ServiceName -> X#app_state{state = off};
+    fun(X) when X#app_state.name == ServiceName ->
+           (X#app_state.module):stop(X#app_state.name), 
+           X#app_state{state = off, mode = StopMode};
        (X) -> X
     end,
     HandleServices
