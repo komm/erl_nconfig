@@ -108,7 +108,24 @@ app_start(X, Name, Mode) when X#app_state.state == off, X#app_state.name == Name
 ;
 app_start(X, _, _) -> X.
 
-app_status(X) when X#app_state.state == on ->
+app_restart(X, Name, Mode) when X#app_state.name == Name, X#app_state.mode == Mode ->
+             application:load(Name),
+             case lists:keyfind(Name, 1, application:loaded_applications()) of
+             {Name, _, _} -> 
+                application:stop(Name),
+                config_srv:apply(Name),
+                application:start(Name)
+             ;
+             false -> 
+	        M = X#app_state.module,
+		case M:restart(X#app_state.name) of
+		   ok -> X#app_state{mode = Mode, state = on};
+		   _ ->  X#app_state{state = error}
+		end
+             end
+.
+
+app_status(X) when X#app_state.state == on, X#app_state.module /= application ->
   X#app_state{state = (X#app_state.module):status(X#app_state.name)}
 ;
 app_status(X) ->
@@ -132,8 +149,13 @@ handle_call({start_service, ServiceName, StartMode}, _From, HandleServices) ->
   case [ X || X <- HandleServices, is_record(X, app_state), (X#app_state.name == ServiceName) or (ServiceName == all)] of
     [] -> application:load(ServiceName),
           config_srv:apply(ServiceName),
-	  application:start(ServiceName),
-          {reply, ok, HandleServices}
+          StateApp = 
+	  case application:start(ServiceName) of
+            ok -> on;
+            {error, {already_started, _}} -> on;
+            _ -> false
+          end,
+          {reply, ok, HandleServices ++ [#app_state{module = application, name = ServiceName, mode = StartMode, state = StateApp}]}
     ;
     _ -> 
           NewHandleServices =
@@ -143,7 +165,6 @@ handle_call({start_service, ServiceName, StartMode}, _From, HandleServices) ->
           ),
           {reply, ok, NewHandleServices}
   end
-  
 ;
 handle_call({stop_service, all, StopMode}, _From, HandleServices) ->
   NewHandleServices = 
@@ -171,15 +192,23 @@ handle_call({stop_service, ServiceName, StopMode}, _From, HandleServices) ->
   ),
   {reply, ok, NewHandleServices}
 ;
-handle_call({restart_service, ServiceName, _RestartMode}, _From, HandleServices) ->
-  case [ X || X <- HandleServices, is_record(X, app_state), X#app_state.name =:= ServiceName] of
-    [] -> application:stop(ServiceName),
-          config_srv:apply(ServiceName),
-	  application:start(ServiceName)
-    ;
-    [App | _] -> App:restart([])
-  end,
-  {reply, ok, HandleServices}
+handle_call({restart_service, all, RestartMode}, _From, HandleServices) ->
+  NewHandleServices = 
+  lists:map(
+    fun(X) -> app_restart(X, X#app_state.name, RestartMode) end,
+    HandleServices
+  ),
+  {reply, ok, NewHandleServices}
+;
+handle_call({restart_service, ServiceName, RestartMode}, _From, HandleServices) ->
+  NewHandleServices = 
+  lists:map(
+    fun(X) when X#app_state.name == ServiceName -> app_restart(X, X#app_state.name, RestartMode);
+       (X) -> X
+    end,
+    HandleServices
+  ),
+  {reply, ok, NewHandleServices}
 .
 
 handle_cast(_Msg, HandleServices) ->
