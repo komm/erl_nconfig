@@ -78,7 +78,7 @@ name(Handle, Params)->
 	    non_existing -> 
                #app_state{module= ModuleName, name = '', state = error, mode = manual};
 	    _ ->
-	       case ModuleName:register(Params) of
+	       case catch ModuleName:register(Params) of
                  error -> [];
                  {'EXIT', _}-> [];
                  {ok, Name} -> #app_state{ module = ModuleName, name = Name, state = off, mode = auto}
@@ -92,7 +92,7 @@ name(Handle, Params)->
 
 app_start(X, all, Mode) when (X#app_state.state == off) and (X#app_state.mode == Mode) ->
 	     M = X#app_state.module,
-	     case M:start(X#app_state.name) of
+	     case catch M:start(X#app_state.name) of
 	       ok -> X#app_state{state = on};
 	       {error,{already_started,_}} -> X#app_state{state = on};
 	       _ ->  X#app_state{state = error}
@@ -100,7 +100,7 @@ app_start(X, all, Mode) when (X#app_state.state == off) and (X#app_state.mode ==
 ;
 app_start(X, Name, Mode) when X#app_state.state == off, X#app_state.name == Name ->
 	     M = X#app_state.module,
-	     case M:start(X#app_state.name) of
+	     case catch M:start(X#app_state.name) of
 	       ok -> X#app_state{mode = Mode, state = on};
 	       {error,{already_started,_}} -> X#app_state{state = on, mode = Mode};
 	       _ ->  X#app_state{state = error}
@@ -118,7 +118,7 @@ app_restart(X, Name, Mode) when X#app_state.name == Name, X#app_state.mode == Mo
              ;
              false -> 
 	        M = X#app_state.module,
-		case M:restart(X#app_state.name) of
+		case catch M:restart(X#app_state.name) of
 		   ok -> X#app_state{mode = Mode, state = on};
 		   _ ->  X#app_state{state = error}
 		end
