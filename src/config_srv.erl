@@ -133,7 +133,18 @@ default()->
 .
 
 -spec save_config( file )            -> ok;
+		 ( raw )             -> Config :: list().
 		 ( Value :: term() ) -> error.
+save_config(raw)-> 
+      lists:flatten(
+      [io_lib:format(File, '~p{\n~s}\n',[X, 
+		[case C of 
+                 argv -> io_lib:format('\t~s = "~s";\n',[C, V]);
+                 _ -> io_lib:format('\t~s = ~s;\n',[C, V])
+                 end
+                || {C, V} <- Y] ]) 
+      || {X,Y} <- get_config()])
+;
 save_config(file)-> 
   Argx=init:get_arguments(),
   case lists:keyfind(conf,1,Argx) of
