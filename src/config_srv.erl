@@ -133,11 +133,11 @@ default()->
 .
 
 -spec save_config( file )            -> ok;
-		 ( raw )             -> Config :: list().
+		 ( raw )             -> Config :: list();
 		 ( Value :: term() ) -> error.
 save_config(raw)-> 
       lists:flatten(
-      [io_lib:format(File, '~p{\n~s}\n',[X, 
+      [io_lib:format('~p{\n~s}\n',[X, 
 		[case C of 
                  argv -> io_lib:format('\t~s = "~s";\n',[C, V]);
                  _ -> io_lib:format('\t~s = ~s;\n',[C, V])
