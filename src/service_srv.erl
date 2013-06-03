@@ -78,6 +78,7 @@ name(Handle, Params)->
 	    non_existing -> 
                #app_state{module= ModuleName, name = '', state = error, mode = manual};
 	    _ ->
+	       %%TODO: valide already started services
 	       case catch ModuleName:register(Params) of
                  error -> [];
                  {'EXIT', _}-> [];
