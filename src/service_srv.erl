@@ -237,7 +237,7 @@ handle_call(reload_services, _From, Services) ->
 
   %start new services
   NewServices = ReRegister -- OldLivedServices,
-%  S2 = [app_start(X, X#app_state.name, auto) || X <- NewServices],
+  S2 = [app_start(X, X#app_state.name, auto) || X <- NewServices],
 
   error_logger:info_report([{?MODULE, handle_call},
 				{previous_services, Services},
@@ -245,7 +245,6 @@ handle_call(reload_services, _From, Services) ->
 				{removed_services, RemovedRegister},
 				{new_services, NewServices}
 			   ]),
-  S2 = [],
   {reply, ok, lists:flatten(S1 ++ S2)}
 .
 
