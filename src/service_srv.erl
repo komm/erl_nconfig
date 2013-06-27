@@ -16,7 +16,7 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/0, start_service/2, stop_service/2, restart_service/2, status_services/0]).
+-export([start_link/0, start_service/2, stop_service/2, restart_service/2, status_services/0, reload_services/0]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -36,11 +36,12 @@ start_link() ->
 
 -spec behaviour_info(callbacks) -> list().
 behaviour_info(callbacks) ->
-  [{start,   1},
-   {stop,    1},
-   {restart, 1},
-   {status,  0},
-   {register,1}
+  [{start,     1},
+   {stop,      1},
+   {restart,   1},
+   {status,    0},
+   {register,  1},
+   {unregister,1}
   ].
 
 
@@ -66,8 +67,17 @@ restart_service(ServiceName, RestartMode)->
 status_services()->
   gen_server:call({global, ?MODULE}, status_all)
 .
+
+-spec reload_services()->list().
+reload_services()->
+  gen_server:call({global, ?MODULE}, reload_services)
+
+.
+
+%%hack for node parameters
+name(node, _)->[];
+%%/hack
 name(Handle, Params)->
-	%%is application?
 	case application:load(Handle) of
 	ok -> 
 		config_srv:apply(Handle), 
@@ -76,7 +86,9 @@ name(Handle, Params)->
   	  ModuleName = list_to_atom("handle_" ++ atom_to_list(Handle)),
 	  case code:which(ModuleName) of
 	    non_existing -> 
-               #app_state{module= ModuleName, name = '', state = error, mode = manual};
+               %%#app_state{module= ModuleName, name = '', state = error, mode = manual};
+               error_logger:error_report([{?MODULE, name}, {error_handler, ModuleName}]),
+               [];
 	    _ ->
 	       %%TODO: valide already started services
 	       case catch ModuleName:register(Params) of
@@ -86,7 +98,7 @@ name(Handle, Params)->
                end
 	  end;
 	{error,{already_loaded,_}}->
-		#app_state{module = application, name = Handle, mode = duplicate, state = off };
+		#app_state{module = application, name = Handle, mode = auto, state = off };
 	_->[]
 	end
 .
@@ -138,7 +150,7 @@ app_status(X) ->
 %% ------------------------------------------------------------------
 init([])->
   HandleServices = [ name(Name, Config) || {Name, Config} <- config_srv:get_config()],
-  {ok, HandleServices}
+  {ok, lists:flatten(HandleServices)}
 .
 
 handle_call(all, _From, HandleServices) ->
@@ -210,6 +222,31 @@ handle_call({restart_service, ServiceName, RestartMode}, _From, HandleServices) 
     HandleServices
   ),
   {reply, ok, NewHandleServices}
+;
+handle_call(reload_services, _From, Services) ->
+  %stop disable services and remove.
+  ReRegister = [ name(Name, Config) || {Name, Config} <- config_srv:get_config()],
+  RemovedRegister = [X#app_state{state=off, mode=auto} || X<-Services, (X#app_state.mode == auto) or (X#app_state.mode == error) ] -- ReRegister,
+  [ catch (X#app_state.module):stop(X#app_state.name) || X<-RemovedRegister, X#app_state.state == on ],
+  [ catch (X#app_state.module):unregister(X#app_state.name) || X<-RemovedRegister, X#app_state.module /= application],
+  [ application:unload(X#app_state.name) || X<-RemovedRegister, X#app_state.module == application],
+
+  %restart old services
+  OldLivedServices = ([X#app_state{state=off, mode=auto} || X<-Services, X#app_state.mode /= manual] -- RemovedRegister),
+  S1 = [ app_restart(X, X#app_state.name, auto) || X<-OldLivedServices, X#app_state.module],
+
+  %start new services
+  NewServices = ReRegister -- OldLivedServices,
+%  S2 = [app_start(X, X#app_state.name, auto) || X <- NewServices],
+
+  error_logger:info_report([{?MODULE, handle_call},
+				{previous_services, Services},
+				{restart_services, OldLivedServices},
+				{removed_services, RemovedRegister},
+				{new_services, NewServices}
+			   ]),
+  S2 = [],
+  {reply, ok, lists:flatten(S1 ++ S2)}
 .
 
 handle_cast(_Msg, HandleServices) ->

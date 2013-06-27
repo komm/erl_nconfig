@@ -40,8 +40,15 @@ handle_call(all, _From, Config) ->
 handle_call({get,Val}, _From, Config) ->
   {reply, pp(Val,Config), Config}
 ;
-handle_call({update_config, file} ,_From, _Config)->
-   {reply,ok, read_config(file)}
+handle_call({update_config, file} ,_From, Config)->
+   NewConfig = case catch read_config(file) of
+     {'EXIT', Error} -> 
+     	error_logger:error_report([{?MODULE, handle_call}, {'FAIL', {update_config, file}}, Error]),
+	Config
+     ;
+   Other -> Other
+   end,
+   {reply,ok, NewConfig}
 ;
 handle_call({update_config, json, Json} ,_From, _Config)->
    NewConfig = mochijson2:decode(Json),
