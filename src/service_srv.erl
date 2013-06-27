@@ -233,7 +233,7 @@ handle_call(reload_services, _From, Services) ->
 
   %restart old services
   OldLivedServices = ([X#app_state{state=off, mode=auto} || X<-Services, X#app_state.mode /= manual] -- RemovedRegister),
-  S1 = [ app_restart(X, X#app_state.name, auto) || X<-OldLivedServices, X#app_state.module],
+  S1 = [ app_restart(X, X#app_state.name, auto) || X<-OldLivedServices],
 
   %start new services
   NewServices = ReRegister -- OldLivedServices,
