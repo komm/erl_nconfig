@@ -5,75 +5,75 @@ config <- ( freeline / crlf / monitoring / node / limit / log / callbacks / msis
 `
 ;
 
-asterisk <- "asterisk" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
+asterisk <- (freeline / space)* "asterisk" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
 	{asterisk,
 		[X || {cwd,X} <-lists:flatten(Node) ]}
 
 `
 ;
 
-filters <- "filters" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
+filters <- (freeline / space)* "filters" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
 	{filters,
 		[X || {cwd,X} <-lists:flatten(Node) ]}
 
 `
 ;
 
-node <- "node" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
+node <- (freeline / space)* "node" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
 	{node,
 		[X || {cwd,X} <-lists:flatten(Node) ]}
 
 `
 ;
 
-msisdn <- "msisdn" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
+msisdn <- (freeline / space)* "msisdn" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
 	{msisdn,
 		[X || {cwd,X} <-lists:flatten(Node) ]}
 
 `
 ;
 
-database <- "database" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
+database <- (freeline / space)* "database" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
 	{database,
 		[X || {cwd,X} <-lists:flatten(Node) ]}
 
 `
 ;
 
-listner <- ("listner" / "listen") (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
+listner <- (freeline / space)* ("listner" / "listen") (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
 	{listner,
 		[X || {cwd,X} <-lists:flatten(Node) ]}
 
 `
 ;
 
-rtpproxy <- ("rtpproxy" / "listen") (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
+rtpproxy <- (freeline / space)* ("rtpproxy" / "listen") (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
 	{rtpproxy,
 		[X || {cwd,X} <-lists:flatten(Node) ]}
 
 `
 ;
 
-monitoring <- "monitoring" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
+monitoring <- (freeline / space)* "monitoring" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
 	{monitoring,
 		[X || {cwd,X} <-lists:flatten(Node) ]}
 
 `
 ;
 
-limit <- "limit" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
+limit <- "(freeline / space)* limit" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
 	{limit,
 		[X || {cwd,X} <-lists:flatten(Node) ]}
 
 `
 ;
-log <- "log" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
+log <- (freeline / space)* "log" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
 	{log,
 		[X || {cwd,X} <-lists:flatten(Node) ]}
 
 `
 ;
-callbacks <- "callbacks" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
+callbacks <- (freeline / space)* "callbacks" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
 	{callbacks,
 		[X || {cwd,X} <-lists:flatten(Node) ]}
 
