@@ -1,6 +1,9 @@
 
 
-config <- (monitoring / node / limit / log / callbacks / msisdn / filters / database / asterisk / listner / rtpproxy / commandline / comment / freeline / crlf )* ~;
+config <- ( freeline / crlf / monitoring / node / limit / log / callbacks / msisdn / filters / database / asterisk / listner / rtpproxy / commandline / comment / freeline / crlf )* `
+	[X || X <- lists:flatten(Node), X /= {none}, X /= {crlf}]
+`
+;
 
 asterisk <- "asterisk" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
 	{asterisk,
@@ -84,7 +87,7 @@ commandline <- (freeline / space)* comm:command space* "=" space* (param:argv / 
 	}
 `
 ;
-freeline <- comment / space* crlf `
+freeline <- space* comment / space* crlf `
 	{none}
 `
 ;
@@ -110,5 +113,8 @@ comment <- '#' (!"\n" .)* `
 	{comment}
 `
 ;
-crlf <- [\r]? [\n]+ ~;
+crlf <- [\r]? [\n]+ `
+	{crlf}
+`
+;
 

@@ -127,7 +127,10 @@ app_restart(X, Name, Mode) when X#app_state.name == Name, X#app_state.mode == Mo
              {Name, _, _} -> 
                 application:stop(Name),
                 config_srv:apply(Name),
-                application:start(Name)
+                case application:start(Name) of
+		ok -> X#app_state{state=on};
+		_ -> X#app_state{state=error}
+		end
              ;
              false -> 
 	        M = X#app_state.module,
@@ -232,12 +235,11 @@ handle_call(reload_services, _From, Services) ->
   [ application:unload(X#app_state.name) || X<-RemovedRegister, X#app_state.module == application],
 
   %restart old services
-  OldLivedServices = ([X#app_state{state=off, mode=auto} || X<-Services, X#app_state.mode /= manual] -- RemovedRegister),
-  S1 = [ app_restart(X, X#app_state.name, auto) || X<-OldLivedServices, X#app_state.module],
+  OldLivedServices = ([X#app_state{state=off, mode=auto} || X<-Services,is_record(X, app_state), X#app_state.mode /= manual] -- RemovedRegister),
+  S1 = [ app_restart(X, X#app_state.name, auto) || X<-OldLivedServices,is_record(X, app_state), X#app_state.module],
 
   %start new services
   NewServices = ReRegister -- OldLivedServices,
-%  S2 = [app_start(X, X#app_state.name, auto) || X <- NewServices],
 
   error_logger:info_report([{?MODULE, handle_call},
 				{previous_services, Services},
@@ -245,7 +247,7 @@ handle_call(reload_services, _From, Services) ->
 				{removed_services, RemovedRegister},
 				{new_services, NewServices}
 			   ]),
-  S2 = [],
+  S2 = [app_start(X, X#app_state.name, auto) || X <- NewServices, is_record(X, app_state)],
   {reply, ok, lists:flatten(S1 ++ S2)}
 .
 
