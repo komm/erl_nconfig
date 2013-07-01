@@ -10,7 +10,7 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/0, get_config/0, get_config/1, read_config/1, update_config/1, save_config/1, apply/1]).
+-export([start_link/0, get_config/0, get_config/1, get_config/2, read_config/1, update_config/1, save_config/1, apply/1]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -133,6 +133,20 @@ get_config(Val)->
      List -> List ++ application:get_all_env(Val)
    end
 .
+%%FAST HACK
+%% get_config({node, 'node@hostname'}, asterisk ).
+get_config({Field, FieldValue}, Val)->
+   Config = gen_server:call({global, ?MODULE}, all),
+   Result=
+   [ case pp(Field, X) of 
+	false -> X++[{Field, FieldValue}];
+	FieldValue -> X;
+	_-> []
+     end
+   || {Y, X} <-Config, Y =:=Val ],
+   Result -- lists:duplicate(length(Result),"")
+.
+%%/END HACK
 
 -spec default() -> Config :: list().
 default()->
