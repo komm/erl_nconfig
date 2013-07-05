@@ -94,7 +94,7 @@ freeline <- space* comment / space* crlf `
 
 command <- word ~;
 parameter <- ipv / path / word ~;
-path <- (word ":")? "/"* (word "/")* word?`
+path <- (word ":")? "/"* (word (":" word)? "/")* word?`
 	iolist_to_binary(Node)
 `;
 ipv <- [0-9]+ "." [0-9]+ "." [0-9]+ "." [0-9]+  (":" [0-9]+)?`
