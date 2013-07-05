@@ -1,6 +1,6 @@
 
 
-config <- ( freeline / crlf / monitoring / node / limit / log / callbacks / msisdn / filters / database / asterisk / listner / rtpproxy / commandline / comment / freeline / crlf )* `
+config <- ( freeline / crlf / monitoring / node / limit / log / callback / msisdn / filters / database / asterisk / listner / rtpproxy / commandline / comment / freeline / crlf )* `
 	[X || X <- lists:flatten(Node), X /= {none}, X /= {crlf}]
 `
 ;
@@ -73,8 +73,8 @@ log <- (freeline / space)* "log" (freeline / space)* "{" (freeline / space)* crl
 
 `
 ;
-callbacks <- (freeline / space)* "callbacks" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
-	{callbacks,
+callback <- (freeline / space)* "callback" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
+	{callback,
 		[X || {cwd,X} <-lists:flatten(Node) ]}
 
 `
