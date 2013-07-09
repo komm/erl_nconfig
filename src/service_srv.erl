@@ -9,7 +9,9 @@
           module :: atom(),
           name :: atom() | list(),
           state :: 'on' | 'off',
-          mode = auto :: 'auto' | 'manual'
+          mode = auto :: 'auto' | 'manual',
+	  node :: node(),
+	  ctime :: term()
        }).
 
 %% ------------------------------------------------------------------
@@ -81,7 +83,7 @@ name(Handle, Params)->
 	case application:load(Handle) of
 	ok -> 
 		config_srv:apply(Handle), 
-		#app_state{module = application, name = Handle, mode = auto, state = off };
+		#app_state{module = application, name = Handle, mode = auto, state = off, node = node() };
 	{error,{"no such file or directory",_}} ->
   	  ModuleName = list_to_atom("handle_" ++ atom_to_list(Handle)),
 	  case code:which(ModuleName) of
@@ -94,7 +96,8 @@ name(Handle, Params)->
 	       case catch ModuleName:register(Params) of
                  error -> [];
                  {'EXIT', _}-> [];
-                 {ok, Name} -> #app_state{ module = ModuleName, name = Name, state = off, mode = auto}
+                 {ok, Name} -> #app_state{ module = ModuleName, name = Name, state = off, mode = auto};
+                 {ok, Name, Node} -> #app_state{ module = ModuleName, name = Name, state = off, mode = auto, node = Node}
                end
 	  end;
 	{error,{already_loaded,_}}->
@@ -106,7 +109,7 @@ name(Handle, Params)->
 app_start(X, all, Mode) when (X#app_state.state == off) and (X#app_state.mode == Mode) ->
 	     M = X#app_state.module,
 	     case catch M:start(X#app_state.name) of
-	       ok -> X#app_state{state = on};
+	       ok -> X#app_state{state = on, ctime = now()};
 	       {error,{already_started,_}} -> X#app_state{state = on};
 	       _ ->  X#app_state{state = error}
 	     end
@@ -114,7 +117,7 @@ app_start(X, all, Mode) when (X#app_state.state == off) and (X#app_state.mode ==
 app_start(X, Name, Mode) when X#app_state.state == off, X#app_state.name == Name ->
 	     M = X#app_state.module,
 	     case catch M:start(X#app_state.name) of
-	       ok -> X#app_state{mode = Mode, state = on};
+	       ok -> X#app_state{mode = Mode, state = on, ctime = now()};
 	       {error,{already_started,_}} -> X#app_state{state = on, mode = Mode};
 	       _ ->  X#app_state{state = error}
 	     end
@@ -128,15 +131,15 @@ app_restart(X, Name, Mode) when X#app_state.name == Name, X#app_state.mode == Mo
                 application:stop(Name),
                 config_srv:apply(Name),
                 case application:start(Name) of
-		ok -> X#app_state{state=on};
-		_ -> X#app_state{state=error}
+		ok -> X#app_state{state=on, ctime = now()};
+		_ -> X#app_state{state=error, ctime = undefined}
 		end
              ;
              false -> 
 	        M = X#app_state.module,
 		case catch M:restart(X#app_state.name) of
-		   ok -> X#app_state{mode = Mode, state = on};
-		   _ ->  X#app_state{state = error}
+		   ok -> X#app_state{mode = Mode, state = on, ctime = now()};
+		   _ ->  X#app_state{state = error, ctime = undefined}
 		end
              end
 .
@@ -171,7 +174,7 @@ handle_call({start_service, ServiceName, StartMode}, _From, HandleServices) ->
             {error, {already_started, _}} -> on;
             _ -> false
           end,
-          {reply, ok, HandleServices ++ [#app_state{module = application, name = ServiceName, mode = StartMode, state = StateApp}]}
+          {reply, ok, HandleServices ++ [#app_state{module = application, name = ServiceName, mode = StartMode, state = StateApp, ctime = now()}]}
     ;
     _ -> 
           NewHandleServices =
@@ -187,7 +190,7 @@ handle_call({stop_service, all, StopMode}, _From, HandleServices) ->
   lists:map(
     fun(X) when X#app_state.state == on, X#app_state.mode == StopMode
 	   -> (X#app_state.module):stop(X#app_state.name), 
-              X#app_state{state = off};
+              X#app_state{state = off, ctime = undefined};
        (X) -> X
     end,
     HandleServices
@@ -201,7 +204,7 @@ handle_call({stop_service, ServiceName, StopMode}, _From, HandleServices) ->
   lists:map(
     fun(X) when X#app_state.name == ServiceName ->
            (X#app_state.module):stop(X#app_state.name), 
-           X#app_state{state = off, mode = StopMode};
+           X#app_state{state = off, mode = StopMode, ctime = undefined};
        (X) -> X
     end,
     HandleServices
