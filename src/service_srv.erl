@@ -76,9 +76,6 @@ reload_services()->
 
 .
 
-%%hack for node parameters
-name(node, _)->[];
-%%/hack
 name(Handle, Params)->
 	case application:load(Handle) of
 	ok -> 
@@ -88,11 +85,9 @@ name(Handle, Params)->
   	  ModuleName = list_to_atom("handle_" ++ atom_to_list(Handle)),
 	  case code:which(ModuleName) of
 	    non_existing -> 
-               %%#app_state{module= ModuleName, name = '', state = error, mode = manual};
                error_logger:error_report([{?MODULE, name}, {error_handler, ModuleName}]),
                [];
 	    _ ->
-	       %%TODO: valide already started services
 	       case catch ModuleName:register(Params) of
                  error -> [];
                  {'EXIT', _}-> [];
@@ -124,28 +119,31 @@ app_start(X, Name, Mode) when X#app_state.state == off, X#app_state.name == Name
 ;
 app_start(X, _, _) -> X.
 
-app_restart(X, Name, Mode) when X#app_state.name == Name, X#app_state.mode == Mode ->
+app_restart(X, Name, Mode) when X#app_state.name == Name->
              application:load(Name),
              case lists:keyfind(Name, 1, application:loaded_applications()) of
              {Name, _, _} -> 
                 application:stop(Name),
                 config_srv:apply(Name),
                 case application:start(Name) of
-		ok -> X#app_state{state=on, ctime = now()};
-		_ -> X#app_state{state=error, ctime = undefined}
+		ok -> X#app_state{state=on, ctime = now(), mode = Mode};
+		_ -> X#app_state{state=error, ctime = undefined, mode = Mode}
 		end
              ;
              false -> 
 	        M = X#app_state.module,
 		case catch M:restart(X#app_state.name) of
 		   ok -> X#app_state{mode = Mode, state = on, ctime = now()};
-		   _ ->  X#app_state{state = error, ctime = undefined}
+		   _ ->  X#app_state{state = error, ctime = undefined, mode = Mode}
 		end
              end
 .
 
 app_status(X) when X#app_state.state == on, X#app_state.module /= application ->
-  X#app_state{state = (X#app_state.module):status(X#app_state.name)}
+  case catch X#app_state{state = (X#app_state.module):status(X#app_state.name)} of
+  {'EXIT', _} -> X#app_state{state = error};
+  Other -> Other
+  end
 ;
 app_status(X) ->
   X
