@@ -1,127 +1,53 @@
 
-
-config <- ( freeline / crlf / monitoring / node / limit / log / callback / msisdn / filters / database / asterisk / stun / listner / rtpproxy / commandline / comment / freeline / crlf )* `
-	[X || X <- lists:flatten(Node), X /= {none}, X /= {crlf}]
+config <- ( freeline / crlf / section / commandline / comment / freeline / crlf )* `
+    [X || X <- lists:flatten(Node), X /= {none}, X /= {crlf}]
 `
 ;
 
-asterisk <- (freeline / space)* "asterisk" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
-	{asterisk,
-		[X || {cwd,X} <-lists:flatten(Node) ]}
-
-`
-;
-
-stun <- (freeline / space)* "stun" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
-	{stun,
-		[X || {cwd,X} <-lists:flatten(Node) ]}
-
-`
-;
-
-filters <- (freeline / space)* "filters" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
-	{filters,
-		[X || {cwd,X} <-lists:flatten(Node) ]}
-
-`
-;
-
-node <- (freeline / space)* "node" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
-	{node,
-		[X || {cwd,X} <-lists:flatten(Node) ]}
-
-`
-;
-
-msisdn <- (freeline / space)* "msisdn" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
-	{msisdn,
-		[X || {cwd,X} <-lists:flatten(Node) ]}
-
-`
-;
-
-database <- (freeline / space)* "database" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
-	{database,
-		[X || {cwd,X} <-lists:flatten(Node) ]}
-
-`
-;
-
-listner <- (freeline / space)* ("listner" / "listen") (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
-	{listner,
-		[X || {cwd,X} <-lists:flatten(Node) ]}
-
-`
-;
-
-rtpproxy <- (freeline / space)* ("rtpproxy" / "listen") (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
-	{rtpproxy,
-		[X || {cwd,X} <-lists:flatten(Node) ]}
-
-`
-;
-
-monitoring <- (freeline / space)* "monitoring" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
-	{monitoring,
-		[X || {cwd,X} <-lists:flatten(Node) ]}
-
-`
-;
-
-limit <- "(freeline / space)* limit" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
-	{limit,
-		[X || {cwd,X} <-lists:flatten(Node) ]}
-
-`
-;
-log <- (freeline / space)* "log" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
-	{log,
-		[X || {cwd,X} <-lists:flatten(Node) ]}
-
-`
-;
-callback <- (freeline / space)* "callback" (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment  crlf*)* "}" (freeline / space)* crlf*`
-	{callback,
-		[X || {cwd,X} <-lists:flatten(Node) ]}
+section <- (freeline / space)* block:word (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment / sec:section crlf*)* "}" (freeline / space)* crlf*`
+    {binary_to_atom(proplists:get_value(block, Node), latin1),
+        [X || {cwd,X} <-lists:flatten(Node) ] ++
+        [ X|| {sec, X} <- lists:flatten(Node)]
+    }
 
 `
 ;
 
 commandline <- (freeline / space)* comm:command space* "=" space* (param:argv / param:parameter) space* delimeter`
-	{
-		binary_to_atom(proplists:get_value(comm,Node),latin1),
-		binary_to_atom(proplists:get_value(param,Node),latin1)
-	}
+    {
+        binary_to_atom(proplists:get_value(comm,Node),latin1),
+        binary_to_atom(proplists:get_value(param,Node),latin1)
+    }
 `
 ;
 freeline <- space* comment / space* crlf `
-	{none}
+    {none}
 `
 ;
 
 command <- word ~;
 parameter <- ipv / path / word ~;
 path <- (word ":")? "/"* (word (":" word)? "/"?)* word?`
-	iolist_to_binary(Node)
+    iolist_to_binary(Node)
 `;
 ipv <- [0-9]+ "." [0-9]+ "." [0-9]+ "." [0-9]+  (":" [0-9]+)?`
-	iolist_to_binary(Node)
+    iolist_to_binary(Node)
 `;
 word <- [a-zA-Z0-9@_.-]+ `
-	iolist_to_binary(Node)
+    iolist_to_binary(Node)
 `;
 argv <- '"' [a-zA-Z0-9.:=_\ \t\/-]* '"' `
-	list_to_binary(binary_to_list(iolist_to_binary(Node))--[34,34])
+    list_to_binary(binary_to_list(iolist_to_binary(Node))--[34,34])
 `;
 
 delimeter <- (";" space* )* ~;
 space <- [\ \t] ~;
 comment <- '#' (!"\n" .)* `
-	{comment}
+    {comment}
 `
 ;
 crlf <- [\r]? [\n]+ `
-	{crlf}
+    {crlf}
 `
 ;
 
