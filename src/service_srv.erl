@@ -41,7 +41,7 @@ behaviour_info(callbacks) ->
   [{start,     1},
    {stop,      1},
    {restart,   1},
-   {status,    0},
+   {status,    1},
    {register,  1},
    {unregister,1}
   ].
