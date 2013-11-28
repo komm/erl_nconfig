@@ -23,15 +23,22 @@
 %% ------------------------------------------------------------------
 
 -spec start_link() -> {ok, Pid :: pid()}.
+-spec start_link(NormalazeFun :: is_fun()) -> {ok, Pid :: pid()}.
 start_link() ->
   gen_server:start_link({global, ?SERVER}, ?MODULE, [], []).
+start_link(NormalazeFun) ->
+  gen_server:start_link({global, ?SERVER}, ?MODULE, [NormalazeFun], []).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
 
-init(_)->
+init([])->
   Config=read_config(file),
+  {ok, Config}
+;
+init([NormalazeFun])->
+  Config=NormalazeFun(read_config(file)),
   {ok, Config}
 .
 
