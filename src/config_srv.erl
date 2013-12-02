@@ -23,7 +23,7 @@
 %% ------------------------------------------------------------------
 
 -spec start_link() -> {ok, Pid :: pid()}.
--spec start_link(NormalazeFun :: is_fun()) -> {ok, Pid :: pid()}.
+-spec start_link(NormalazeFun :: fun()) -> {ok, Pid :: pid()}.
 start_link() ->
   gen_server:start_link({global, ?SERVER}, ?MODULE, [], []).
 start_link(NormalazeFun) ->
