@@ -49,13 +49,22 @@ handle_call({get,Val}, _From, Config) when is_atom(Val)->
 ;
 handle_call({get, []}, _From, Config) -> {reply, Config, Config};
 handle_call({get, [H|T]}, From, Config) ->
-  io:format('~s~n', [H]),
   case pp(H, Config) of
-  error->
-      {reply, error, Config}
+  [Config1] when is_atom(Config1) ->
+      case T of
+      []->
+          {reply, Config1, Config};
+      _-> 
+          {reply, [], Config}
+      end
   ;
-  Config1 ->
+  [Config1] when is_list(Config1)->
       {reply, Resp, _} = handle_call({get, T}, From, Config1),
+      {reply, Resp, Config}
+  ;
+  Config1 when is_list(Config1)->
+      %%io:format('~w~n', [Config1]),
+      Resp = [fun({reply, R, _})-> R end(handle_call({get, T}, From, C)) || C<-Config1],
       {reply, Resp, Config}
   end
 ;
@@ -97,12 +106,12 @@ code_change(_OldVsn, Config, _Extra) ->
 %% ------------------------------------------------------------------
 
 -spec pp(Value :: term(), Config :: list()) -> false | term().
-pp(Val,Config)->
-   case lists:keyfind(Val,1,Config) of
-        false-> false;
-        {Val,R}-> R;
-        Other-> Other
-   end
+pp(_, [])->
+    [];
+pp(Val, [{Val, R}|T])->
+    [R] ++ pp(Val, T);
+pp(Val, [_|T])->
+    pp(Val, T)
 .
 
 -spec compare(Key :: list(), Template :: list()) -> Result :: list().
