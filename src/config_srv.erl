@@ -169,7 +169,7 @@ get_config({Field, FieldValue}, Val)->
    Result=
    [ case pp(Field, X) of 
 	[] -> X++[{Field, FieldValue}];
-	FieldValue -> X;
+	[FieldValue|_] -> X;
 	_-> []
      end
    || {Y, X} <-Config, Y =:=Val ],
