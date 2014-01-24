@@ -44,8 +44,20 @@ init([NormalazeFun])->
 
 handle_call(all, _From, Config) ->
   {reply, Config, Config};
-handle_call({get,Val}, _From, Config) ->
+handle_call({get,Val}, _From, Config) when is_atom(Val)->
   {reply, pp(Val,Config), Config}
+;
+handle_call({get, []}, _From, Config) -> {reply, Config, Config};
+handle_call({get, [H|T]}, From, Config) ->
+  io:format('~s~n', [H]),
+  case pp(H, Config) of
+  error->
+      {reply, error, Config}
+  ;
+  Config1 ->
+      {reply, Resp, _} = handle_call({get, T}, From, Config1),
+      {reply, Resp, Config}
+  end
 ;
 handle_call({update_config, file} ,_From, Config)->
    NewConfig = case catch read_config(file) of
@@ -134,7 +146,12 @@ read_config(json)->none.
 
 get_config()->
    gen_server:call({global, ?MODULE}, all).
-get_config(Val)->
+%%for search section "/section1/section2/.../sectionN"
+get_config(Val) when is_list(Val)->
+   Path = [list_to_atom(X) || X<-string:tokens(Val, "/")],
+   gen_server:call({global, ?MODULE}, {get, Path})
+;
+get_config(Val) when is_atom(Val)->
    case gen_server:call({global, ?MODULE}, {get, Val}) of
      false -> application:get_all_env(Val);
      List -> List ++ application:get_all_env(Val)
