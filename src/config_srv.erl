@@ -118,11 +118,7 @@ pp(Val, [_|T])->
 compare([],_)->[];
 compare([HeadConfig|Tail], Template)->
 	{BlockName, Value} = HeadConfig,
-	RequredParameter = case pp(BlockName, Template) of
-		error -> [];
-		false -> [];
-		Other -> Other
-	end,
+	RequredParameter = pp(BlockName, Template),
 	Diff = [ X || {X, _} <- RequredParameter] -- [X || {X, _} <- Value],
 	[{BlockName, Value ++ [lists:keyfind(X,1,RequredParameter) || X <- Diff ]}] ++ compare(Tail, Template)
 
@@ -172,7 +168,7 @@ get_config({Field, FieldValue}, Val)->
    Config = gen_server:call({global, ?MODULE}, all),
    Result=
    [ case pp(Field, X) of 
-	false -> X++[{Field, FieldValue}];
+	[] -> X++[{Field, FieldValue}];
 	FieldValue -> X;
 	_-> []
      end
