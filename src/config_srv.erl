@@ -49,31 +49,52 @@ handle_call({get,Val}, _From, Config) when is_atom(Val)->
 ;
 handle_call({get, []}, _From, Config) -> {reply, Config, Config};
 handle_call({get, [H|T]}, From, Config) ->
-  case pp(H, Config) of
+  [KeyValue | Filters] = H,
+
+  FunFilter=
+  fun(Fun, [], Cfg)->
+     true;
+     (Fun, [{FilterKey, FilterValue}|NextFilter], Cfg)->
+      FilterValueAtom = list_to_atom(FilterValue),
+      case pp(list_to_atom(FilterKey), Cfg) of
+      [FilterValueAtom] -> 
+        Fun(Fun, NextFilter, Cfg)
+      ;
+      _Res-> 
+        false
+      end
+  end, %%([list_to_tuple(string:tokens(XXX,"=")) || XXX<-Filters]),
+
+  case pp(list_to_atom(KeyValue), Config) of
   [Config1] when is_atom(Config1) ->
       case T of
       []->
-          {reply, Config1, Config};
+          case FunFilter(FunFilter, [list_to_tuple(string:tokens(XXX,"=")) || XXX<-Filters], Config) of
+          true->
+              {reply, Config1, Config};
+          false->
+              {reply, [], Config}
+          end;
       _-> 
           {reply, [], Config}
       end
   ;
   [Config1] when is_list(Config1)->
-      {reply, Resp, _} = handle_call({get, T}, From, Config1),
-      {reply, Resp, Config}
-  ;
-  Config1 when is_list(Config1)->
-      %%io:format('~w~n', [Config1]),
-      Resp = [fun({reply, R, _})-> R end(handle_call({get, T}, From, C)) || C<-Config1],
-      {reply, Resp, Config}
+      case FunFilter(FunFilter, [list_to_tuple(string:tokens(XXX,"=")) || XXX<-Filters], Config) of
+      true->
+          {reply, Resp, _} = handle_call({get, T}, From, Config1),
+          {reply, Resp, Config};
+      false->
+          {reply, [], Config}
+      end
   end
 ;
 handle_call({update_config, file} ,_From, Config)->
    NewConfig = case catch read_config(file) of
-     {'EXIT', Error} -> 
-     	error_logger:error_report([{?MODULE, handle_call}, {'FAIL', {update_config, file}}, Error]),
-	Config
-     ;
+   {'EXIT', Error} -> 
+        error_logger:error_report([{?MODULE, handle_call}, {'FAIL', {update_config, file}}, Error]),
+        Config
+   ;
    Other -> Other
    end,
    {reply,ok, NewConfig}
@@ -125,24 +146,24 @@ compare([HeadConfig|Tail], Template)->
 .
 
 -spec read_config( http ) -> none;
-		 ( json ) -> none;
-		 ( file ) -> Config :: list().
+        ( json ) -> none;
+        ( file ) -> Config :: list().
 read_config(file)->
   Argx=init:get_arguments(),
   case lists:keyfind(conf,1,Argx) of
     false->default();
     {conf,Path}->
       case emd_config:file(Path) of
-        {_,BadString,BadValue}->
+      {_,BadString,BadValue}->
           error_logger:error_report([{?MODULE, read_config},
                                      {error, BadValue},
                                      {string, io_lib:format('~s', [binary_to_list(BadString)])},
                                      "Load default parameters"
                                     ]),
-	  default()
-        ;
-	Config when is_list(Config)-> 
-		compare(Config, default())
+          default()
+      ;
+      Config when is_list(Config)-> 
+        compare(Config, default())
       end
   end
 ;
@@ -151,9 +172,10 @@ read_config(json)->none.
 
 get_config()->
    gen_server:call({global, ?MODULE}, all).
-%%for search section "/section1/section2/.../sectionN"
+%%for search section "/section1/section2?node=node@hostname?role=master/.../sectionN"
 get_config(Val) when is_list(Val)->
-   Path = [list_to_atom(X) || X<-string:tokens(Val, "/")],
+   %%Path = [list_to_atom(X) || X<-string:tokens(Val, "/")],
+   Path = [ string:tokens(X, "?") || X<-string:tokens(Val, "/")],
    gen_server:call({global, ?MODULE}, {get, Path})
 ;
 get_config(Val) when is_atom(Val)->
