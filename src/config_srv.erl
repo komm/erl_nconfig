@@ -54,6 +54,20 @@ handle_call({get, [H|T]}, From, Config) ->
   FunFilter=
   fun(Fun, [], Cfg)->
      true;
+     (Fun, [{[$?|FilterKey], FilterValue}|NextFilter], Cfg)->
+      FilterValueAtom = list_to_atom(FilterValue),
+      case pp(list_to_atom(FilterKey), Cfg) of
+      [FilterValueAtom] -> 
+        Fun(Fun, NextFilter, Cfg)
+      ;
+      []->
+        Fun(Fun, NextFilter, Cfg)
+      ;
+      _Res-> 
+        false
+      end
+
+     ;
      (Fun, [{FilterKey, FilterValue}|NextFilter], Cfg)->
       FilterValueAtom = list_to_atom(FilterValue),
       case pp(list_to_atom(FilterKey), Cfg) of
@@ -175,7 +189,7 @@ get_config()->
 %%for search section "/section1/section2?node=node@hostname?role=master/.../sectionN"
 get_config(Val) when is_list(Val)->
    %%Path = [list_to_atom(X) || X<-string:tokens(Val, "/")],
-   Path = [ string:tokens(X, "?") || X<-string:tokens(Val, "/")],
+   Path = [ string:tokens(X, "&") || X<-string:tokens(Val, "/")],
    gen_server:call({global, ?MODULE}, {get, Path})
 ;
 get_config(Val) when is_atom(Val)->
