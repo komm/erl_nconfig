@@ -101,6 +101,9 @@ handle_call({get, [H|T]}, From, Config) ->
       false->
           {reply, [], Config}
       end
+  ;
+  []->
+      {reply, [], Config}
   end
 ;
 handle_call({update_config, file} ,_From, Config)->
