@@ -5,7 +5,7 @@ config <- ( freeline / crlf / section / commandline / comment / freeline / crlf 
 ;
 
 section <- (freeline / space)* block:word (freeline / space)* "{" (freeline / space)* crlf* ((freeline / space)* cwd:commandline / comment / sec:section crlf*)* "}" (freeline / space)* crlf*`
-    {binary_to_atom(proplists:get_value(block, Node), latin1),
+    {proplists:get_value(block, Node),
         [X || {cwd,X} <-lists:flatten(Node) ] ++
         [ X|| {sec, X} <- lists:flatten(Node)]
     }
@@ -15,8 +15,8 @@ section <- (freeline / space)* block:word (freeline / space)* "{" (freeline / sp
 
 commandline <- (freeline / space)* comm:command space* "=" space* (param:argv / param:parameter) space* delimeter`
     {
-        binary_to_atom(proplists:get_value(comm,Node),latin1),
-        binary_to_atom(proplists:get_value(param,Node),latin1)
+        proplists:get_value(comm,Node),
+        proplists:get_value(param,Node)
     }
 `
 ;

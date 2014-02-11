@@ -3,6 +3,8 @@
 
 -behaviour(gen_server).
 
+-include_lib("kernel/include/file.hrl").
+
 -define(SERVER, ?MODULE).
 -define(DEFAULT_APP, nconfig).
 
@@ -10,7 +12,7 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/0, get_config/0, get_config/1, get_config/2, read_config/1, update_config/1, save_config/1, apply/1]).
+-export([start_link/0, start_link/1, get_config/0, get_config/1, read_config/1, update_config/1, save_config/1, apply/1]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -44,7 +46,10 @@ init([NormalazeFun])->
 
 handle_call(all, _From, Config) ->
   {reply, Config, Config};
-handle_call({get,Val}, _From, Config) when is_atom(Val)->
+
+
+
+handle_call({get,Val}, _From, Config) when is_binary(Val)->
   {reply, pp(Val,Config), Config}
 ;
 handle_call({get, []}, _From, Config) -> {reply, Config, Config};
@@ -52,11 +57,12 @@ handle_call({get, [H|T]}, From, Config) ->
   [KeyValue | Filters] = H,
 
   FunFilter=
-  fun(Fun, [], Cfg)->
+  fun(_Fun, [], _Cfg)->
      true;
      (Fun, [{[$?|FilterKey], FilterValue}|NextFilter], Cfg)->
-      FilterValueAtom = list_to_atom(FilterValue),
-      case pp(list_to_atom(FilterKey), Cfg) of
+	io:format('FilterKey=~w,  FilterValue=~w, NextFilter=~w~n~n', [FilterKey, FilterValue, NextFilter]),
+      FilterValueAtom = list_to_binary(FilterValue),
+      case pp(list_to_binary(FilterKey), Cfg) of
       [FilterValueAtom] -> 
         Fun(Fun, NextFilter, Cfg)
       ;
@@ -69,8 +75,9 @@ handle_call({get, [H|T]}, From, Config) ->
 
      ;
      (Fun, [{FilterKey, FilterValue}|NextFilter], Cfg)->
-      FilterValueAtom = list_to_atom(FilterValue),
-      case pp(list_to_atom(FilterKey), Cfg) of
+	io:format('FilterKey=~w,  FilterValue=~w, NextFilter=~w~n~n', [FilterKey, FilterValue, NextFilter]),
+      FilterValueAtom = list_to_binary(FilterValue),
+      case pp(list_to_binary(FilterKey), Cfg) of
       [FilterValueAtom] -> 
         Fun(Fun, NextFilter, Cfg)
       ;
@@ -79,8 +86,8 @@ handle_call({get, [H|T]}, From, Config) ->
       end
   end, %%([list_to_tuple(string:tokens(XXX,"=")) || XXX<-Filters]),
 
-  case pp(list_to_atom(KeyValue), Config) of
-  [Config1] when is_atom(Config1) ->
+  case pp(list_to_binary(KeyValue), Config) of
+  [Config1] when is_binary(Config1) ->
       case T of
       []->
           case FunFilter(FunFilter, [list_to_tuple(string:tokens(XXX,"=")) || XXX<-Filters], Config) of
@@ -104,8 +111,25 @@ handle_call({get, [H|T]}, From, Config) ->
   ;
   []->
       {reply, [], Config}
+  ;
+  Config1 when is_list(Config1)->
+	RRR = [fun({reply, Resp, _})-> Resp end(handle_call({get, T}, From, CCC)) || CCC <- Config1],
+	%%RRR = [fun(_)-> komm end(handle_call({get, T}, From, CCC)) || CCC <- Config1],
+        {reply, lists:flatten(RRR), Config}
+%%** exception exit: {{{case_clause,[[{<<"name">>,<<"node1">>}],
+%%                                   [{<<"name">>,<<"node2">>},
+%%                                    {<<"enabled">>,<<"true">>},
+%%                                    {<<"parameters">>,
+%%                                     [{<<"address">>,<<"127.0.0.1:8080">>},
+%%                                      {<<"address">>,<<"127.0.0.1:8081">>}]}]]},
+%%                     [{config_srv,handle_call,3,
+%%                                  [{file,"src/config_srv.erl"},{line,89}]},
+%%
   end
 ;
+
+
+
 handle_call({update_config, file} ,_From, Config)->
    NewConfig = case catch read_config(file) of
    {'EXIT', Error} -> 
@@ -164,57 +188,45 @@ compare([HeadConfig|Tail], Template)->
 
 -spec read_config( http ) -> none;
         ( json ) -> none;
-        ( file ) -> Config :: list().
-read_config(file)->
-  Argx=init:get_arguments(),
-  case lists:keyfind(conf,1,Argx) of
-    false->default();
-    {conf,Path}->
-      case emd_config:file(Path) of
-      {_,BadString,BadValue}->
-          error_logger:error_report([{?MODULE, read_config},
-                                     {error, BadValue},
-                                     {string, io_lib:format('~s', [binary_to_list(BadString)])},
-                                     "Load default parameters"
-                                    ]),
+        ( file ) -> Config :: list();
+        ( {file, Path :: list()} ) -> Config :: list().
+read_config({file, Path})->
+  case file:read_file_info(Path) of
+  {error, Reason}->
+    error_logger:error_report([{?MODULE, read_config}, {error_read_file, Reason}, {file, Path}, "Load default parameters"])
+  ;
+  {ok, #file_info{type = Type, access = Access}} when (Access==read) or (Access==read_write), (Type==regular) or (Type==symlink)->
+      case catch emd_config:file(Path) of
+      {'EXIT', _}->
+          error_logger:error_report([{?MODULE, read_config}, {error_read_file}, {file, Path}, "Load default parameters"]),
+          default()
+      ;
+      {_, BadString, BadValue}->
+          error_logger:error_report([{?MODULE, read_config}, {error_read_file, BadString, BadValue}, "Load default parameters"]),
           default()
       ;
       Config when is_list(Config)-> 
-        compare(Config, default())
+          compare(Config, default())
       end
+  end
+;
+read_config(file)->
+  case {os:getenv("NCONFIG"), init:get_argument(conf), init:get_argument(nconfig)} of
+  {false, error, error}->
+     default()
+  ;
+  {false, {ok, [[Path]]}, _} ->
+     read_config({file, Path})
+  ;
+  {false, error, {ok, [[Path]]}} ->
+     read_config({file, Path})
+  ;
+  {Path, _,_ }->
+     read_config({file, Path})
   end
 ;
 read_config(http)->none;
 read_config(json)->none.
-
-get_config()->
-   gen_server:call({global, ?MODULE}, all).
-%%for search section "/section1/section2?node=node@hostname?role=master/.../sectionN"
-get_config(Val) when is_list(Val)->
-   %%Path = [list_to_atom(X) || X<-string:tokens(Val, "/")],
-   Path = [ string:tokens(X, "&") || X<-string:tokens(Val, "/")],
-   gen_server:call({global, ?MODULE}, {get, Path})
-;
-get_config(Val) when is_atom(Val)->
-   case gen_server:call({global, ?MODULE}, {get, Val}) of
-     false -> application:get_all_env(Val);
-     List -> List ++ application:get_all_env(Val)
-   end
-.
-%%FAST HACK
-%% get_config({node, 'node@hostname'}, asterisk ).
-get_config({Field, FieldValue}, Val)->
-   Config = gen_server:call({global, ?MODULE}, all),
-   Result=
-   [ case pp(Field, X) of 
-	[] -> X++[{Field, FieldValue}];
-	[FieldValue|_] -> X;
-	_-> []
-     end
-   || {Y, X} <-Config, Y =:=Val ],
-   Result -- lists:duplicate(length(Result),"")
-.
-%%/END HACK
 
 -spec default() -> Config :: list().
 default()->
@@ -275,3 +287,22 @@ apply(App)->
   end
 .
 
+-spec get_config() -> term(). 
+get_config()->
+   gen_server:call({global, ?MODULE}, all).
+
+-spec get_config( Value :: atom() | list() | binary() ) -> term(). 
+get_config(Val) when is_atom(Val)->
+   get_config(list_to_binary(atom_to_list(Val)))
+;
+%%for search section "/section1/section2?node=node@hostname?role=master/.../sectionN"
+get_config(Val) when is_list(Val)->
+   Path = [ string:tokens(X, "&") || X<-string:tokens(Val, "/")],
+   gen_server:call({global, ?MODULE}, {get, Path})
+;
+get_config(Val) when is_binary(Val)->
+   case gen_server:call({global, ?MODULE}, {get, Val}) of
+     false -> application:get_all_env(Val);
+     List -> List ++ application:get_all_env(Val)
+   end
+.
