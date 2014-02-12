@@ -60,14 +60,18 @@ handle_call({get, [H|T]}, From, Config) ->
   fun(_Fun, [], _Cfg)->
      true;
      (Fun, [{[$?|FilterKey], FilterValue}|NextFilter], Cfg)->
-      io:format('FilterKey=~w,  FilterValue=~w, NextFilter=~w~n~n', [FilterKey, FilterValue, NextFilter]),
       FilterValueAtom = list_to_binary(FilterValue),
       case pp(list_to_binary(FilterKey), Cfg) of
-      [FilterValueAtom] -> 
-        Fun(Fun, NextFilter, Cfg)
-      ;
       []->
         Fun(Fun, NextFilter, Cfg)
+      ;
+      FilterValueAtomList when is_list(FilterValueAtomList) -> 
+        case lists:member(FilterValueAtom, FilterValueAtomList) of
+        true->
+            Fun(Fun, NextFilter, Cfg);
+        false->
+            false
+        end
       ;
       _Res-> 
         false
@@ -78,11 +82,13 @@ handle_call({get, [H|T]}, From, Config) ->
       %%io:format('FilterKey=~w,  FilterValue=~w, NextFilter=~w~n~n', [FilterKey, FilterValue, NextFilter]),
       FilterValueAtom = list_to_binary(FilterValue),
       case pp(list_to_binary(FilterKey), Cfg) of
-      [FilterValueAtom] -> 
-        Fun(Fun, NextFilter, Cfg)
-      ;
-      [FilterValueAtom|_] -> 
-        Fun(Fun, NextFilter, Cfg)
+      FilterValueAtomList when is_list(FilterValueAtomList) -> 
+        case lists:member(FilterValueAtom, FilterValueAtomList) of
+        true->
+            Fun(Fun, NextFilter, Cfg);
+        false->
+            false
+        end
       ;
       _Res->  
         false
