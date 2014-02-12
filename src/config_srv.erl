@@ -60,7 +60,7 @@ handle_call({get, [H|T]}, From, Config) ->
   fun(_Fun, [], _Cfg)->
      true;
      (Fun, [{[$?|FilterKey], FilterValue}|NextFilter], Cfg)->
-	io:format('FilterKey=~w,  FilterValue=~w, NextFilter=~w~n~n', [FilterKey, FilterValue, NextFilter]),
+      io:format('FilterKey=~w,  FilterValue=~w, NextFilter=~w~n~n', [FilterKey, FilterValue, NextFilter]),
       FilterValueAtom = list_to_binary(FilterValue),
       case pp(list_to_binary(FilterKey), Cfg) of
       [FilterValueAtom] -> 
@@ -75,13 +75,16 @@ handle_call({get, [H|T]}, From, Config) ->
 
      ;
      (Fun, [{FilterKey, FilterValue}|NextFilter], Cfg)->
-	io:format('FilterKey=~w,  FilterValue=~w, NextFilter=~w~n~n', [FilterKey, FilterValue, NextFilter]),
+      %%io:format('FilterKey=~w,  FilterValue=~w, NextFilter=~w~n~n', [FilterKey, FilterValue, NextFilter]),
       FilterValueAtom = list_to_binary(FilterValue),
       case pp(list_to_binary(FilterKey), Cfg) of
       [FilterValueAtom] -> 
         Fun(Fun, NextFilter, Cfg)
       ;
-      _Res-> 
+      [FilterValueAtom|_] -> 
+        Fun(Fun, NextFilter, Cfg)
+      ;
+      _Res->  
         false
       end
   end, %%([list_to_tuple(string:tokens(XXX,"=")) || XXX<-Filters]),
@@ -100,31 +103,14 @@ handle_call({get, [H|T]}, From, Config) ->
           {reply, [], Config}
       end
   ;
-  [Config1] when is_list(Config1)->
+  Config1 when is_list(Config1)->
       case FunFilter(FunFilter, [list_to_tuple(string:tokens(XXX,"=")) || XXX<-Filters], Config) of
       true->
-          {reply, Resp, _} = handle_call({get, T}, From, Config1),
-          {reply, Resp, Config};
+          Result = [fun({reply, Resp, _})-> Resp end(handle_call({get, T}, From, CCC)) || CCC <- Config1],
+          {reply, lists:flatten(Result), Config};
       false->
           {reply, [], Config}
       end
-  ;
-  []->
-      {reply, [], Config}
-  ;
-  Config1 when is_list(Config1)->
-	RRR = [fun({reply, Resp, _})-> Resp end(handle_call({get, T}, From, CCC)) || CCC <- Config1],
-	%%RRR = [fun(_)-> komm end(handle_call({get, T}, From, CCC)) || CCC <- Config1],
-        {reply, lists:flatten(RRR), Config}
-%%** exception exit: {{{case_clause,[[{<<"name">>,<<"node1">>}],
-%%                                   [{<<"name">>,<<"node2">>},
-%%                                    {<<"enabled">>,<<"true">>},
-%%                                    {<<"parameters">>,
-%%                                     [{<<"address">>,<<"127.0.0.1:8080">>},
-%%                                      {<<"address">>,<<"127.0.0.1:8081">>}]}]]},
-%%                     [{config_srv,handle_call,3,
-%%                                  [{file,"src/config_srv.erl"},{line,89}]},
-%%
   end
 ;
 
