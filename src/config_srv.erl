@@ -24,15 +24,16 @@
 %% API Function Definitions
 %% ------------------------------------------------------------------
 
--spec start_link() -> {ok, Pid :: pid()}.
--spec start_link(NormalazeFun :: fun()) -> {ok, Pid :: pid()}.
 start_link() ->
-  gen_server:start_link({global, ?SERVER}, ?MODULE, [], []).
-start_link(local)->
-  gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+  gen_server:start_link({global, ?SERVER}, ?MODULE, [], [])
 .
+
+start_link(local)->
+  gen_server:start_link({local, ?SERVER}, ?MODULE, [], [])
+;
 start_link(NormalazeFun) ->
-  gen_server:start_link({global, ?SERVER}, ?MODULE, [NormalazeFun], []).
+  gen_server:start_link({global, ?SERVER}, ?MODULE, [NormalazeFun], [])
+.
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
@@ -287,11 +288,10 @@ apply(App)->
 get_config()->
    gen_server:call({global, ?MODULE}, all).
 
--spec get_config( Value :: atom() | list() | binary() ) -> term(). 
 get_config(Val) when is_atom(Val)->
    get_config(list_to_binary(atom_to_list(Val)))
 ;
-%%for search section "/section1/section2?node=node@hostname?role=master/.../sectionN"
+%% search section "/section1/section2&node=node@hostname&?role=master/.../sectionN"
 get_config(Val) when is_list(Val)->
    Path = [ string:tokens(X, "&") || X<-string:tokens(Val, "/")],
    gen_server:call({global, ?MODULE}, {get, Path})
@@ -305,6 +305,17 @@ get_config(Val) when is_binary(Val)->
 get_config(global, Val) ->
     get_config(Val)
 ;
-get_config(local, Val) ->
-    
+get_config(local, Val) when is_atom(Val)->
+   get_config(local, list_to_binary(atom_to_list(Val)))
+;
+get_config(local, Val) when is_list(Val)->
+   Path = [ string:tokens(X, "&") || X<-string:tokens(Val, "/")],
+   gen_server:call(?MODULE, {get, Path})
+;
+get_config(local, Val) when is_binary(Val)->
+   case gen_server:call(?MODULE, {get, Val}) of
+     false -> application:get_all_env(Val);
+     List -> List ++ application:get_all_env(Val)
+   end
 .
+    
