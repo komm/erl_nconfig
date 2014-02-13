@@ -12,7 +12,7 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 
--export([start_link/0, start_link/1, get_config/0, get_config/1, read_config/1, update_config/1, save_config/1, apply/1]).
+-export([start_link/0, start_link/1, get_config/0, get_config/1, get_config/2, read_config/1, update_config/1, save_config/1, apply/1]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -28,6 +28,9 @@
 -spec start_link(NormalazeFun :: fun()) -> {ok, Pid :: pid()}.
 start_link() ->
   gen_server:start_link({global, ?SERVER}, ?MODULE, [], []).
+start_link(local)->
+  gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+.
 start_link(NormalazeFun) ->
   gen_server:start_link({global, ?SERVER}, ?MODULE, [NormalazeFun], []).
 
@@ -298,4 +301,10 @@ get_config(Val) when is_binary(Val)->
      false -> application:get_all_env(Val);
      List -> List ++ application:get_all_env(Val)
    end
+.
+get_config(global, Val) ->
+    get_config(Val)
+;
+get_config(local, Val) ->
+    
 .
