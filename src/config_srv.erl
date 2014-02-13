@@ -278,8 +278,8 @@ update_config({json, Json})->
 apply(App)->
   case get_config(App) of
    false -> error;
-   List when is_list(List) ->
-     [application:set_env(App, Value, Parameter) || {Value, Parameter} <- List],
+   [List] when is_list(List) ->
+     [application:set_env(App, list_to_atom(binary_to_list(Value)), list_to_atom(binary_to_list(Parameter))) || {Value, Parameter} <- List],
      ok
   end
 .

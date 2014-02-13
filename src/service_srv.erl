@@ -77,12 +77,12 @@ reload_services()->
 .
 
 name(Handle, Params)->
-	case application:load(Handle) of
+	case application:load(list_to_atom(binary_to_list(Handle))) of
 	ok -> 
 		config_srv:apply(Handle), 
 		#app_state{module = application, name = Handle, mode = auto, state = off, node = node() };
 	{error,{"no such file or directory",_}} ->
-  	  ModuleName = list_to_atom("handle_" ++ atom_to_list(Handle)),
+  	  ModuleName = list_to_atom("handle_" ++ binary_to_list(Handle)),
 	  case code:which(ModuleName) of
 	    non_existing -> 
                error_logger:error_report([{?MODULE, name}, {error_handler, ModuleName}]),
