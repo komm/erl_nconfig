@@ -113,7 +113,8 @@ handle_call({get, [H|T]}, From, Config) ->
       case FunFilter(FunFilter, [list_to_tuple(string:tokens(XXX,"=")) || XXX<-Filters], Config) of
       true->
           Result = [fun({reply, Resp, _})-> Resp end(handle_call({get, T}, From, CCC)) || CCC <- Config1],
-          {reply, lists:flatten(Result), Config};
+          {reply, Result, Config};
+          %%{reply, lists:flatten(Result), Config};
       false->
           {reply, [], Config}
       end
