@@ -235,7 +235,7 @@ default()->
 		 ( Value :: term() ) -> error.
 save_config(raw)-> 
       lists:flatten(
-      [io_lib:format('~p{\n~s}\n',[X, 
+      [io_lib:format('~s{\n~s}\n',[X, 
 		[case C of 
                  argv -> io_lib:format('\t~s = "~s";\n',[C, V]);
                  _ -> io_lib:format('\t~s = ~s;\n',[C, V])
