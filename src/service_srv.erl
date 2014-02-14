@@ -167,7 +167,7 @@ handle_call({start_service, ServiceName, StartMode}, _From, HandleServices) ->
     [] -> application:load(ServiceName),
           config_srv:apply(ServiceName),
           StateApp = 
-	  case application:start(ServiceName) of
+          case application:start(ServiceName) of
             ok -> on;
             {error, {already_started, _}} -> on;
             _ -> false
@@ -177,7 +177,7 @@ handle_call({start_service, ServiceName, StartMode}, _From, HandleServices) ->
     _ -> 
           NewHandleServices =
           lists:map(
-		fun(X)-> app_start(X, ServiceName, StartMode) end,
+                fun(X)-> app_start(X, ServiceName, StartMode) end,
                 HandleServices 
           ),
           {reply, ok, NewHandleServices}
@@ -187,7 +187,7 @@ handle_call({stop_service, all, StopMode}, _From, HandleServices) ->
   NewHandleServices = 
   lists:map(
     fun(X) when X#app_state.state == on, X#app_state.mode == StopMode
-	   -> (X#app_state.module):stop(X#app_state.name), 
+    -> (X#app_state.module):stop(X#app_state.name), 
               X#app_state{state = off, ctime = undefined};
        (X) -> X
     end,
@@ -196,8 +196,8 @@ handle_call({stop_service, all, StopMode}, _From, HandleServices) ->
   {reply, ok, NewHandleServices}
 ;
 handle_call({stop_service, ServiceName, StopMode}, _From, HandleServices) ->
-  application:stop(ServiceName),
-  application:unload(ServiceName),
+  application:stop(list_to_atom(binary_to_list(ServiceName))),
+  application:unload(list_to_atom(binary_to_list(ServiceName))),
   NewHandleServices = 
   lists:map(
     fun(X) when X#app_state.name == ServiceName ->
