@@ -295,7 +295,7 @@ get_config(Val) when is_atom(Val)->
 get_config(Val) when is_list(Val)->
    Val1 = re:replace(Val, [92,92,$/], [172], [{return,list}, global]),
    %%Path = [ string:tokens(X, "&") || X<-string:tokens(Val1, "/")],
-   Path = [ [re:replace(Y, [172], "/", [{return,list}, global]) || Y<-string:tokens(X, "&")] || X<-string:tokens(Val1, "/")]
+   Path = [ [re:replace(Y, [172], "/", [{return,list}, global]) || Y<-string:tokens(X, "&")] || X<-string:tokens(Val1, "/")],
    gen_server:call({global, ?MODULE}, {get, Path})
 ;
 get_config(Val) when is_binary(Val)->
@@ -313,7 +313,7 @@ get_config(local, Val) when is_atom(Val)->
 get_config(local, Val) when is_list(Val)->
    Val1 = re:replace(Val, [92,92,$/], [172], [{return,list}, global]),
    %%Path = [ string:tokens(X, "&") || X<-string:tokens(Val1, "/")],
-   Path = [ [re:replace(Y, [172], "/", [{return,list}, global]) || Y<-string:tokens(X, "&")] || X<-string:tokens(Val1, "/")]
+   Path = [ [re:replace(Y, [172], "/", [{return,list}, global]) || Y<-string:tokens(X, "&")] || X<-string:tokens(Val1, "/")],
    gen_server:call(?MODULE, {get, Path})
 ;
 get_config(local, Val) when is_binary(Val)->
