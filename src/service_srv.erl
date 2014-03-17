@@ -77,10 +77,12 @@ reload_services()->
 .
 
 name(Handle, Params)->
-	case application:load(list_to_atom(binary_to_list(Handle))) of
+    HandleAtom = list_to_atom(binary_to_list(Handle)),
+	case application:load(HandleAtom) of
 	ok -> 
+		config_srv:apply(HandleAtom), 
 		config_srv:apply(Handle), 
-		#app_state{module = application, name = Handle, mode = auto, state = off, node = node() };
+		#app_state{module = application, name = HandleAtom, mode = auto, state = off, node = node() };
 	{error,{"no such file or directory",_}} ->
   	  ModuleName = list_to_atom("handle_" ++ binary_to_list(Handle)),
 	  case code:which(ModuleName) of
@@ -96,7 +98,7 @@ name(Handle, Params)->
                end
 	  end;
 	{error,{already_loaded,_}}->
-		#app_state{module = application, name = Handle, mode = auto, state = off };
+		#app_state{module = application, name = HandleAtom, mode = auto, state = off };
 	_->[]
 	end
 .
@@ -164,10 +166,21 @@ handle_call(status_all, _From, HandleServices) ->
   {reply, Resp, HandleServices};
 handle_call({start_service, ServiceName, StartMode}, _From, HandleServices) ->
   case [ X || X <- HandleServices, is_record(X, app_state), (X#app_state.name == ServiceName) or (ServiceName == all)] of
-    [] -> application:load(ServiceName),
-          config_srv:apply(ServiceName),
+    [] -> 
+          SN = if
+          is_atom(ServiceName)->
+            ServiceName;
+          is_binary(ServiceName)->
+            list_to_atom(binary_to_list(ServiceName));
+          is_list(ServiceName)->
+            list_to_atom(ServiceName));
+          true->
+            ServiceName
+          end,
+          application:load(SN),
+          config_srv:apply(SN),
           StateApp = 
-          case application:start(ServiceName) of
+          case application:start(SN) of
             ok -> on;
             {error, {already_started, _}} -> on;
             _ -> false
