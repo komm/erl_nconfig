@@ -167,20 +167,10 @@ handle_call(status_all, _From, HandleServices) ->
 handle_call({start_service, ServiceName, StartMode}, _From, HandleServices) ->
   case [ X || X <- HandleServices, is_record(X, app_state), (X#app_state.name == ServiceName) or (ServiceName == all)] of
     [] -> 
-          SN = if
-          is_atom(ServiceName)->
-            ServiceName;
-          is_binary(ServiceName)->
-            list_to_atom(binary_to_list(ServiceName));
-          is_list(ServiceName)->
-            list_to_atom(ServiceName));
-          true->
-            ServiceName
-          end,
-          application:load(SN),
-          config_srv:apply(SN),
+          application:load(ServiceName),
+          config_srv:apply(ServiceName),
           StateApp = 
-          case application:start(SN) of
+          case application:start(ServiceName) of
             ok -> on;
             {error, {already_started, _}} -> on;
             _ -> false
