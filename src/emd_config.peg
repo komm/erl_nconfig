@@ -33,7 +33,7 @@ path <- (word ":")? "/"* (word (":" word)? "/"?)* word?`
 ipv <- [0-9]+ "." [0-9]+ "." [0-9]+ "." [0-9]+  (":" [0-9]+)?`
     iolist_to_binary(Node)
 `;
-word <- [a-zA-Z0-9@_.-]+ `
+word <- [a-zA-Z0-9?@_.-]+ `
     iolist_to_binary(Node)
 `;
 argv <- '"' [a-zA-Z0-9.:=_\ \t\/-]* '"' `
